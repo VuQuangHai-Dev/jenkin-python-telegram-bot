@@ -44,9 +44,17 @@ async def build_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Cancel", callback_data="cancel_build_initial")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
+    message = await update.message.reply_text(
         "Click the button to begin the build process.",
         reply_markup=reply_markup
+    )
+    
+    # Lưu thông tin người dùng để kiểm tra quyền
+    context.user_data['owner_id'] = user.id
+    
+    # Lưu metadata cho timeout handler
+    TimeoutConversationHandler.set_timeout_metadata(
+        context, message.chat_id, message.message_id, "build"
     )
 
 def _build_options_keyboard(items: list, item_type: str, back_callback: str = None) -> InlineKeyboardMarkup:
@@ -154,6 +162,10 @@ async def select_branch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await query.answer("You are not the one who initiated this command.", show_alert=True)
         return SELECT_BRANCH
     
+    # Kiểm tra nếu là nút Cancel
+    if query.data == 'build_select_branch:cancel':
+        return await cancel_build(update, context)
+        
     selected_branch = query.data.split(':', 1)[1]
     context.user_data['selected_branch'] = selected_branch
 
@@ -188,6 +200,10 @@ async def select_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         keyboard = _build_options_keyboard(branches, 'branch')
         await query.edit_message_text("🔀 Please select a branch to build:", reply_markup=keyboard)
         return SELECT_BRANCH
+        
+    # Xử lý nút Cancel
+    if query.data == "build_select_target:cancel":
+        return await cancel_build(update, context)
 
     # Xử lý chọn target và trigger build
     selected_target = query.data.split(':', 1)[1]

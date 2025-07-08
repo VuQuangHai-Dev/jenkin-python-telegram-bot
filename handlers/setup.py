@@ -34,9 +34,17 @@ async def setup_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Cancel", callback_data="cancel_setup_initial")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
+    message = await update.message.reply_text(
         "Click the button to begin configuring a Jenkins job for this group.",
         reply_markup=reply_markup
+    )
+    
+    # Lưu thông tin người dùng để kiểm tra quyền
+    context.user_data['setup_user_id'] = user.id
+    
+    # Lưu metadata cho timeout handler
+    TimeoutConversationHandler.set_timeout_metadata(
+        context, message.chat_id, message.message_id, "setup"
     )
 
 def build_keyboard(items: list[str], callback_prefix: str, item_type: str) -> InlineKeyboardMarkup:
@@ -120,6 +128,11 @@ async def select_folder_callback(update: Update, context: ContextTypes.DEFAULT_T
     folder_name_data = query.data
     if not folder_name_data:
         return SELECT_FOLDER
+        
+    # Kiểm tra nếu là nút Cancel
+    if folder_name_data == 'setup_folder:cancel':
+        return await cancel_setup(update, context)
+        
     folder_name = folder_name_data.split(':')[1]
     context.user_data['selected_folder'] = folder_name
 
@@ -157,6 +170,11 @@ async def select_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     selected_job_data = query.data
     if not selected_job_data:
         return SELECT_JOB_IN_FOLDER
+        
+    # Kiểm tra nếu là nút Cancel
+    if selected_job_data == 'setup_job:cancel':
+        return await cancel_setup(update, context)
+        
     selected_job = selected_job_data.split(':')[1]
     selected_folder = context.user_data.get('selected_folder')
     if not selected_folder:

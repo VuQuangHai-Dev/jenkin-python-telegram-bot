@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from aiohttp import web
 
 from telegram import Update
@@ -10,8 +11,8 @@ import config
 import database
 from webhook.server import webhook_handler
 from handlers import commands, setup, build
-from timeout_handler import on_conversation_timeout
 from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue
+from timeout_handler import timeout_messages, register_timeout_job, remove_timeout_job
 
 # Cấu hình logging
 logging.basicConfig(
@@ -20,13 +21,52 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("JenkinsBot")
 
-
 async def main() -> None:
     """Hàm chính, khởi động bot, các handler, và web server."""
     database.init_db()
 
     # Thêm JobQueue để hỗ trợ conversation_timeout
     job_queue = JobQueue()
+    
+    # Hàm xử lý timeout - chạy định kỳ để kiểm tra và cập nhật tin nhắn timeout
+    async def check_timeouts(context):
+        current_time = time.time()
+        
+        # Kiểm tra các tin nhắn đã lưu
+        to_remove = []
+        if not timeout_messages:
+            # Không có tin nhắn nào cần kiểm tra, hủy job
+            remove_timeout_job()
+            return
+            
+        logger.info(f"Checking {len(timeout_messages)} timeout messages")
+        
+        for key, data in timeout_messages.items():
+            chat_id, message_id, timeout_time, conv_type = data
+            
+            # Nếu đã quá thời gian timeout
+            if current_time > timeout_time:
+                try:
+                    # Cập nhật tin nhắn
+                    await context.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        text=f"⏰ {conv_type.title()} timed out due to inactivity.\n\nPlease start over by using the command again.",
+                        reply_markup=None
+                    )
+                    logger.info(f"Updated timeout message for {conv_type} in chat {chat_id}")
+                    to_remove.append(key)
+                except Exception as e:
+                    logger.error(f"Error updating timeout message: {e}")
+                    to_remove.append(key)
+        
+        # Xóa các tin nhắn đã xử lý
+        for key in to_remove:
+            timeout_messages.pop(key, None)
+            
+        # Nếu không còn tin nhắn nào cần kiểm tra, hủy job
+        if not timeout_messages:
+            remove_timeout_job()
 
     # Sử dụng context-based-callbacks
     application = (
@@ -37,6 +77,9 @@ async def main() -> None:
         .job_queue(job_queue)
         .build()
     )
+    
+    # Đăng ký hàm check_timeouts với job_queue
+    register_timeout_job(job_queue, check_timeouts)
 
     # --- Đăng ký các handlers ---
 
@@ -47,6 +90,10 @@ async def main() -> None:
     # Các lệnh prompt cho conversation
     application.add_handler(CommandHandler("setup", setup.setup_prompt))
     application.add_handler(CommandHandler("build", build.build_prompt))
+    
+    # Handlers cho nút Cancel ban đầu (trước khi conversation bắt đầu)
+    application.add_handler(CallbackQueryHandler(setup.cancel_setup_initial, pattern='^cancel_setup_initial$'))
+    application.add_handler(CallbackQueryHandler(build.cancel_build_initial, pattern='^cancel_build_initial$'))
 
     # Conversation Handler cho /login
     login_conv_handler = ConversationHandler(
@@ -64,9 +111,9 @@ async def main() -> None:
     setup_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(setup.setup_start, pattern='^start_setup$')],
         states={
-            # Sửa pattern để không bắt "cancel"
-            setup.SELECT_FOLDER: [CallbackQueryHandler(setup.select_folder_callback, pattern='^setup_folder:(?!cancel$).*')],
-            setup.SELECT_JOB_IN_FOLDER: [CallbackQueryHandler(setup.select_job_callback, pattern='^setup_job:(?!cancel$).*')],
+            # Sử dụng pattern đơn giản hơn để tránh lỗi
+            setup.SELECT_FOLDER: [CallbackQueryHandler(setup.select_folder_callback, pattern='^setup_folder:.*')],
+            setup.SELECT_JOB_IN_FOLDER: [CallbackQueryHandler(setup.select_job_callback, pattern='^setup_job:.*')],
         },
         fallbacks=[
             CallbackQueryHandler(setup.cancel_setup_initial, pattern='^cancel_setup_initial$'),
@@ -74,7 +121,6 @@ async def main() -> None:
         ],
         conversation_timeout=300,
         per_message=True,
-        conversation_timeout_handler=on_conversation_timeout,
     )
     application.add_handler(setup_conv_handler)
 
@@ -91,11 +137,10 @@ async def main() -> None:
         },
         fallbacks=[
             CallbackQueryHandler(build.cancel_build_initial, pattern='^cancel_build_initial$'),
-            CallbackQueryHandler(build.cancel_build, pattern='^build_cancel$')
+            CallbackQueryHandler(build.cancel_build, pattern='^build_cancel$|^build_select_branch:cancel$|^build_select_target:cancel$')
         ],
-        conversation_timeout=600,
+        conversation_timeout=300,
         per_message=True,
-        conversation_timeout_handler=on_conversation_timeout,
     )
     application.add_handler(build_conv_handler)
 
