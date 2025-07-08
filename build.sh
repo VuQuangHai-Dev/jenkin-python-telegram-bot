@@ -1,7 +1,70 @@
 #!/bin/bash
 set -e
 
+# --- CẤU HÌNH TRUNG TÂM ---
+# Biến này có thể được ghi đè bởi Jenkins Parameter có tên UNITY_VERSION
+export UNITY_VERSION=${UNITY_VERSION:-"2021.3.45f1"}
+# Đường dẫn đến Unity Editor, được sử dụng cho cả kích hoạt và build
+UNITY_PATH="/Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app/Contents/MacOS/Unity"
+
+
+# --- HÀM KÍCH HOẠT UNITY THÔNG MINH ---
+activate_unity() {
+    echo "--- Checking Unity License Activation for version $UNITY_VERSION ---"
+
+    # 1. Kiểm tra xem các biến môi trường credentials có tồn tại không
+    if [ -z "$UNITY_USERNAME" ] || [ -z "$UNITY_PASSWORD" ]; then
+        echo "❌ ERROR: UNITY_USERNAME or UNITY_PASSWORD not set in Jenkins environment."
+        echo "Please configure Jenkins credentials binding."
+        exit 1
+    fi
+
+    # 2. Kiểm tra xem đường dẫn Unity có hợp lệ không
+    if [ ! -f "$UNITY_PATH" ]; then
+        echo "❌ ERROR: Could not find Unity executable at specified path: $UNITY_PATH"
+        echo "Please check if UNITY_VERSION ($UNITY_VERSION) is correct and installed."
+        exit 1
+    fi
+    echo "✅ Using Unity executable at: $UNITY_PATH"
+
+
+    # 3. Tạo lệnh kích hoạt
+    LICENSE_CMD_ARGS=("-quit" "-batchmode" "-nographics" "-username" "$UNITY_USERNAME" "-password" "$UNITY_PASSWORD")
+    
+    # Thêm serial key nếu có
+    if [ -n "$UNITY_SERIAL_KEY" ]; then
+        echo "🔑 Unity Pro serial key found, adding to activation command."
+        LICENSE_CMD_ARGS+=("-serial" "$UNITY_SERIAL_KEY")
+    else
+        echo "ℹ️ No Unity Pro serial key found, activating Personal license."
+    fi
+
+    # 4. Chạy lệnh kích hoạt một cách "im lặng"
+    # Log sẽ được ghi vào một file tạm và chỉ hiển thị nếu có lỗi
+    echo "🚀 Attempting to activate Unity license..."
+    ACTIVATION_LOG="$WORKSPACE/unity_activation.log"
+    
+    if "$UNITY_PATH" "${LICENSE_CMD_ARGS[@]}" -logFile "$ACTIVATION_LOG"; then
+        echo "🎉 ✅ Unity license activation successful or already active."
+        # Có thể xóa log nếu thành công để giữ cho workspace sạch sẽ
+        # rm -f "$ACTIVATION_LOG"
+    else
+        echo "❌ ERROR: Unity license activation failed. See log below."
+        echo "==================== UNITY ACTIVATION LOG ===================="
+        cat "$ACTIVATION_LOG"
+        echo "=============================================================="
+        exit 1
+    fi
+    echo "-------------------------------------------"
+    echo ""
+}
+
+
 echo "================== JENKINS UNIVERSAL BUILD SCRIPT START =================="
+
+# --- KÍCH HOẠT UNITY ---
+# Gọi hàm kích hoạt ở ngay đầu
+activate_unity
 
 # --- JENKINS PARAMETERS (Set in Jenkins Job Configuration) ---
 # BUILD_TARGET: "android-apk", "android-apk-dev", "android-aab", "ios-ipa", "ios-ipa-dev", "ios-appstore"
@@ -187,7 +250,7 @@ export BUILD_DIR="$WORKSPACE/Builds/${BUILD_TARGET}"  # Single directory per tar
 export BUILD_CONFIG="${BUILD_CONFIG:-$CONFIG}"
 
 # --- UNITY & TOOLS PATHS ---
-UNITY_PATH="/Applications/Unity/Hub/Editor/2021.3.45f1/Unity.app/Contents/MacOS/Unity"
+# BIẾN UNITY_PATH ĐÃ ĐƯỢC CHUYỂN LÊN ĐẦU SCRIPT
 PROJECT_PATH="$WORKSPACE/MegaRamps"
 LOG_FILE="$WORKSPACE/unity_build_${BUILD_TARGET}.log"
 
