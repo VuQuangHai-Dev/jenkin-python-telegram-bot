@@ -1,0 +1,15 @@
+# Đây là file cấu hình mẫu.
+# Hãy sao chép file này thành 'config.py' và điền các giá trị thực tế của bạn vào.
+# Bạn có thể lấy TELEGRAM_TOKEN từ BotFather trên Telegram.
+TELEGRAM_TOKEN = "YOUR_TELEGRAM_TOKEN_HERE"
+
+# Tên file cơ sở dữ liệu SQLite.
+DB_FILE = "jenkins_bot.db"
+
+# Một chuỗi bí mật ngẫu nhiên để mã hóa dữ liệu, ví dụ như token Jenkins.
+# Bạn có thể tạo một chuỗi mới bằng lệnh: openssl rand -base64 32
+SECRET_KEY = "YOUR_SECRET_KEY_HERE"
+
+# URL cho server Telegram Bot API cục bộ (nếu bạn có sử dụng).
+# Nếu không, bạn có thể để trống hoặc xóa dòng này.
+LOCAL_BOT_API_URL = "http://localhost:8081" 
