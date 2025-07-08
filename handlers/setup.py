@@ -18,8 +18,11 @@ SELECT_FOLDER, SELECT_JOB_IN_FOLDER = range(2)
 
 async def setup_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gửi tin nhắn với nút bấm để bắt đầu cuộc hội thoại setup."""
-    if not update.message:
+    user = update.effective_user
+    if not update.message or not user:
         return
+
+    logger.info(f"Received /setup command from {user.first_name} (ID: {user.id}) in group '{update.message.chat.title}' (ID: {update.message.chat.id})")
 
     if update.message.chat.type == "private":
         await update.message.reply_text("This command only works in a group chat.")

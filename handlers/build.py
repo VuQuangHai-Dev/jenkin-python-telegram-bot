@@ -1,6 +1,7 @@
 # handlers/build.py
 import logging
 import uuid
+import json
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import jenkins
@@ -22,8 +23,11 @@ SELECT_BRANCH, SELECT_TARGET = range(2)
 
 async def build_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gửi tin nhắn với nút bấm để bắt đầu cuộc hội thoại build."""
-    if not update.message:
+    user = update.effective_user
+    if not update.message or not user:
         return
+        
+    logger.info(f"Received /build command from {user.first_name} (ID: {user.id}) in group '{update.message.chat.title}' (ID: {update.message.chat.id})")
 
     if update.message.chat.type == "private":
         await update.message.reply_text("This command only works in a group chat.")
@@ -93,16 +97,31 @@ async def build_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         job_info = server.get_job_info(job_name, depth=2)
         
         param_defs = {}
-        for prop in job_info.get('property', []):
-            if 'parameterDefinitions' in prop:
-                for param in prop['parameterDefinitions']:
-                    param_defs[param['name']] = {'choices': param.get('choices', [])}
+        # Tìm đúng mục chứa định nghĩa tham số trong list 'actions'
+        param_property = next((prop for prop in job_info.get('actions', []) if prop.get('_class') == 'hudson.model.ParametersDefinitionProperty'), None)
+
+        if param_property and 'parameterDefinitions' in param_property:
+            for param in param_property['parameterDefinitions']:
+                param_name = param.get('name')
+                if not param_name:
+                    continue
+                
+                choices = []
+                # Xử lý cho Git Parameter
+                if param.get('_class') == 'net.uaznia.lukanus.hudson.plugins.gitparameter.GitParameterDefinition':
+                    values = param.get('allValueItems', {}).get('values', [])
+                    choices = [item.get('value') for item in values if item.get('value')]
+                # Xử lý cho các tham số dạng Choice thông thường
+                else:
+                    choices = param.get('choices', [])
+                    
+                param_defs[param_name] = {'choices': choices}
         
         context.user_data['job_params'] = param_defs
         branches = param_defs.get('GIT_BRANCH', {}).get('choices', [])
         
         if not branches:
-            await query.edit_message_text("❌ Could not find any GIT_BRANCH parameter for this job.")
+            await query.edit_message_text("❌ Could not find any GIT_BRANCH parameter for this job. Please check Jenkins job configuration and permissions.")
             return ConversationHandler.END
 
         keyboard = _build_options_keyboard(branches, 'branch')
