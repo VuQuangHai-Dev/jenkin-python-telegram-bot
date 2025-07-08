@@ -10,6 +10,7 @@ import config
 import database
 from webhook.server import webhook_handler
 from handlers import commands, setup, build
+from timeout_handler import on_conversation_timeout
 from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue
 
 # Cấu hình logging
@@ -67,9 +68,13 @@ async def main() -> None:
             setup.SELECT_FOLDER: [CallbackQueryHandler(setup.select_folder_callback, pattern='^setup_folder:(?!cancel$).*')],
             setup.SELECT_JOB_IN_FOLDER: [CallbackQueryHandler(setup.select_job_callback, pattern='^setup_job:(?!cancel$).*')],
         },
-        fallbacks=[CallbackQueryHandler(setup.cancel_setup, pattern='^setup_folder:cancel$|^setup_job:cancel$')],
+        fallbacks=[
+            CallbackQueryHandler(setup.cancel_setup_initial, pattern='^cancel_setup_initial$'),
+            CallbackQueryHandler(setup.cancel_setup, pattern='^setup_folder:cancel$|^setup_job:cancel$')
+        ],
         conversation_timeout=300,
         per_message=True,
+        conversation_timeout_handler=on_conversation_timeout,
     )
     application.add_handler(setup_conv_handler)
 
@@ -84,9 +89,13 @@ async def main() -> None:
                 CallbackQueryHandler(build.select_target, pattern='^build_select_target:.*|^build_back_to_branch$')
             ],
         },
-        fallbacks=[CallbackQueryHandler(build.cancel_build, pattern='^build_cancel$')],
+        fallbacks=[
+            CallbackQueryHandler(build.cancel_build_initial, pattern='^cancel_build_initial$'),
+            CallbackQueryHandler(build.cancel_build, pattern='^build_cancel$')
+        ],
         conversation_timeout=600,
         per_message=True,
+        conversation_timeout_handler=on_conversation_timeout,
     )
     application.add_handler(build_conv_handler)
 

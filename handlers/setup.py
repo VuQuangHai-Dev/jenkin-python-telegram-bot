@@ -5,6 +5,7 @@ import jenkins
 
 import database
 import security
+from timeout_handler import TimeoutConversationHandler
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,10 @@ async def setup_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("This command only works in a group chat.")
         return
         
-    keyboard = [[InlineKeyboardButton("🚀 Start Setup", callback_data="start_setup")]]
+    keyboard = [
+        [InlineKeyboardButton("🚀 Start Setup", callback_data="start_setup")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_setup_initial")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Click the button to begin configuring a Jenkins job for this group.",
@@ -89,6 +93,12 @@ async def setup_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             
         keyboard = build_keyboard(folders, 'setup_folder', "folder")
         await query.edit_message_text("🗂️ Please select your project folder:", reply_markup=keyboard)
+        
+        # Lưu metadata cho timeout handler
+        TimeoutConversationHandler.set_timeout_metadata(
+            context, chat.id, query.message.message_id, "setup"
+        )
+        
         return SELECT_FOLDER
     except Exception as e:
         logger.error(f"Error getting folders: {e}")
@@ -177,7 +187,20 @@ async def select_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Error saving group config: {e}")
         await query.edit_message_text("❌ An error occurred during setup.")
     
+    # Xóa timeout metadata khi hoàn thành thành công
+    TimeoutConversationHandler.clear_timeout_metadata(context)
     context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancel_setup_initial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Hủy cuộc hội thoại setup ở bước đầu tiên."""
+    query = update.callback_query
+    if not query:
+        return ConversationHandler.END
+
+    await query.answer()
+    await query.edit_message_text("Setup process canceled.")
+    TimeoutConversationHandler.clear_timeout_metadata(context)
     return ConversationHandler.END
 
 async def cancel_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -190,6 +213,7 @@ async def cancel_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     # Thêm kiểm tra cho context.user_data
     if context.user_data and query.from_user.id == context.user_data.get('setup_user_id'):
         await query.edit_message_text("Setup process canceled.")
+        TimeoutConversationHandler.clear_timeout_metadata(context)
         context.user_data.clear()
     else:
         await query.answer("You are not the one who initiated this command.", show_alert=True)

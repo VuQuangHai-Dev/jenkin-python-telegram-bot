@@ -9,6 +9,7 @@ import jenkins
 import database
 import security
 import config
+from timeout_handler import TimeoutConversationHandler
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,10 @@ async def build_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("This group is not set up. Please use /setup first.")
         return
 
-    keyboard = [[InlineKeyboardButton("🚀 Start Build", callback_data="start_build")]]
+    keyboard = [
+        [InlineKeyboardButton("🚀 Start Build", callback_data="start_build")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_build_initial")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Click the button to begin the build process.",
@@ -126,6 +130,11 @@ async def build_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
         keyboard = _build_options_keyboard(branches, 'branch')
         await query.edit_message_text("🔀 Please select a branch to build:", reply_markup=keyboard)
+        
+        # Lưu metadata cho timeout handler
+        TimeoutConversationHandler.set_timeout_metadata(
+            context, chat.id, query.message.message_id, "build"
+        )
         
         return SELECT_BRANCH
 
@@ -220,8 +229,21 @@ async def select_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     except Exception as e:
         logger.error(f"Error starting build: {e}")
         await query.edit_message_text("❌ Failed to start the build on Jenkins.")
-        
+    
+    # Xóa timeout metadata khi hoàn thành
+    TimeoutConversationHandler.clear_timeout_metadata(context)    
     context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancel_build_initial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Hủy cuộc hội thoại build ở bước đầu tiên."""
+    query = update.callback_query
+    if not query:
+        return ConversationHandler.END
+
+    await query.answer()
+    await query.edit_message_text("Build process canceled.")
+    TimeoutConversationHandler.clear_timeout_metadata(context)
     return ConversationHandler.END
 
 async def cancel_build(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -233,6 +255,7 @@ async def cancel_build(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     
     if query.from_user.id == context.user_data.get('owner_id'):
         await query.edit_message_text("Build process canceled.")
+        TimeoutConversationHandler.clear_timeout_metadata(context)
         context.user_data.clear()
         return ConversationHandler.END
     else:
