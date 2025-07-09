@@ -257,10 +257,10 @@ LOG_FILE="$WORKSPACE/unity_build_${BUILD_TARGET}.log"
 # --- PLATFORM SPECIFIC CONFIGURATION ---
 if [[ "$PLATFORM" == "Android" ]]; then
     # --- ANDROID CONFIGURATION ---
-    export ANDROID_SDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk"
-    export ANDROID_NDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk/android-ndk/android-ndk-r21d"
-    export JAVA_HOME="/opt/homebrew/Cellar/openjdk@17/17.0.15"
-    export GRADLE_PATH="/Volumes/Lexar/TripSoft/Programs/gradle/gradle-8.4"
+    # export ANDROID_SDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk"
+    # export ANDROID_NDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk/android-ndk/android-ndk-r21d"
+    # export JAVA_HOME="/opt/homebrew/Cellar/openjdk@17/17.0.15"
+    # export GRADLE_PATH="/Volumes/Lexar/TripSoft/Programs/gradle/gradle-8.4"
     export SKIP_JDK_VERSION_CHECK=1
     
     # --- KEYSTORE CONFIGURATION ---

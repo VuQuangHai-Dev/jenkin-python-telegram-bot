@@ -346,8 +346,8 @@ public class BuildScript
 
     private static void ConfigureAndroidToolPaths()
     {
-        var androidSdkRoot = Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT");
-        var androidNdkRoot = Environment.GetEnvironmentVariable("ANDROID_NDK_ROOT");
+        var androidSdkRoot = Environment.GetEnvironmentVariable("ANDROID_SDK");
+        var androidNdkRoot = Environment.GetEnvironmentVariable("ANDROID_NDK_21D");
         var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
         var gradlePath = Environment.GetEnvironmentVariable("GRADLE_PATH");
 
