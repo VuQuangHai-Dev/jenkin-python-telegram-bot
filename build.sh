@@ -256,11 +256,6 @@ LOG_FILE="$WORKSPACE/unity_build_${BUILD_TARGET}.log"
 
 # --- PLATFORM SPECIFIC CONFIGURATION ---
 if [[ "$PLATFORM" == "Android" ]]; then
-    # --- ANDROID CONFIGURATION ---
-    # export ANDROID_SDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk"
-    # export ANDROID_NDK_ROOT="/Volumes/Lexar/TripSoft/Programs/android-sdk/android-ndk/android-ndk-r21d"
-    # export JAVA_HOME="/opt/homebrew/Cellar/openjdk@17/17.0.15"
-    # export GRADLE_PATH="/Volumes/Lexar/TripSoft/Programs/gradle/gradle-8.4"
     export SKIP_JDK_VERSION_CHECK=1
     
     # --- KEYSTORE CONFIGURATION ---
@@ -317,9 +312,9 @@ fi
 
 # --- PLATFORM SPECIFIC INFO ---
 if [[ "$PLATFORM" == "Android" ]]; then
-    echo "🤖 ANDROID SDK: $ANDROID_SDK_ROOT"
+    echo "🤖 ANDROID SDK: $ANDROID_SDK"
     echo "☕ JAVA HOME: $JAVA_HOME"
-    echo "🐘 GRADLE PATH: $GRADLE_PATH"
+    echo "🐘 GRADLE HOME: $GRADLE_HOME"
     if [[ "$CONFIG" == "Development" ]]; then
         echo "🔧 DEVELOPMENT FEATURES: Script Debugging + Wait for Managed Debugger + Profiler"
     fi

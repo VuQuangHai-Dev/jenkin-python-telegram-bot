@@ -346,21 +346,21 @@ public class BuildScript
 
     private static void ConfigureAndroidToolPaths()
     {
-        var androidSdkRoot = Environment.GetEnvironmentVariable("ANDROID_SDK");
-        var androidNdkRoot = Environment.GetEnvironmentVariable("ANDROID_NDK_21D");
+        var androidSdk = Environment.GetEnvironmentVariable("ANDROID_SDK");
+        var androidNdk = Environment.GetEnvironmentVariable("ANDROID_NDK_21D");
         var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
-        var gradlePath = Environment.GetEnvironmentVariable("GRADLE_PATH");
+        var gradleHome = Environment.GetEnvironmentVariable("GRADLE_HOME");
 
-        if (!string.IsNullOrEmpty(androidSdkRoot))
+        if (!string.IsNullOrEmpty(androidSdk))
         {
-            EditorPrefs.SetString("AndroidSdkRoot", androidSdkRoot);
-            Debug.Log($"Android SDK Root: {androidSdkRoot}");
+            EditorPrefs.SetString("AndroidSdkRoot", androidSdk);
+            Debug.Log($"Android SDK Root: {androidSdk}");
         }
 
-        if (!string.IsNullOrEmpty(androidNdkRoot))
+        if (!string.IsNullOrEmpty(androidNdk))
         {
-            EditorPrefs.SetString("AndroidNdkRoot", androidNdkRoot);
-            Debug.Log($"Android NDK Root: {androidNdkRoot}");
+            EditorPrefs.SetString("AndroidNdkRoot", androidNdk);
+            Debug.Log($"Android NDK Root: {androidNdk}");
         }
 
         if (!string.IsNullOrEmpty(javaHome))
@@ -369,10 +369,10 @@ public class BuildScript
             Debug.Log($"Java Home: {javaHome}");
         }
 
-        if (!string.IsNullOrEmpty(gradlePath))
+        if (!string.IsNullOrEmpty(gradleHome))
         {
-            EditorPrefs.SetString("GradlePath", gradlePath);
-            Debug.Log($"Gradle Path: {gradlePath}");
+            EditorPrefs.SetString("GradlePath", gradleHome);
+            Debug.Log($"Gradle Path: {gradleHome}");
         }
     }
 
