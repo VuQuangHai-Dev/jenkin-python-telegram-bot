@@ -213,3 +213,6 @@ __marimo__/
 jenkins_bot.db
 *.db
 config.py
+start_api_server.sh
+start_api_server_direct.sh
+proxychains/
