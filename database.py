@@ -170,26 +170,17 @@ def save_group_config(group_id: int, job_path: str, user_id: int) -> bool:
         conn = sqlite3.connect(config.DB_FILE)
         cursor = conn.cursor()
         
-        # Kiểm tra xem cấu hình đã tồn tại chưa
+        # Xóa tất cả cấu hình cũ của nhóm này
         cursor.execute("""
-            SELECT 1 FROM groups 
-            WHERE telegram_group_id = ? AND jenkins_job_path = ?
-        """, (group_id, job_path))
-        exists = cursor.fetchone()
+            DELETE FROM groups 
+            WHERE telegram_group_id = ?
+        """, (group_id,))
         
-        if exists:
-            # Cập nhật nếu đã tồn tại
-            cursor.execute("""
-                UPDATE groups 
-                SET setup_by_user_id = ? 
-                WHERE telegram_group_id = ? AND jenkins_job_path = ?
-            """, (user_id, group_id, job_path))
-        else:
-            # Thêm mới nếu chưa tồn tại
-            cursor.execute("""
-                INSERT INTO groups (telegram_group_id, jenkins_job_path, setup_by_user_id)
-                VALUES (?, ?, ?)
-            """, (group_id, job_path, user_id))
+        # Thêm cấu hình mới
+        cursor.execute("""
+            INSERT INTO groups (telegram_group_id, jenkins_job_path, setup_by_user_id)
+            VALUES (?, ?, ?)
+        """, (group_id, job_path, user_id))
         
         conn.commit()
         return True
