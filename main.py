@@ -161,6 +161,11 @@ async def main() -> None:
     )
     application.add_handler(build_conv_handler)
 
+    # Handler cho các lệnh không xác định - thêm cuối cùng để chỉ xử lý khi không có handler nào khác phù hợp
+    application.add_handler(MessageHandler(filters.COMMAND, commands.unknown_command_handler))
+    
+    # Handler cho các tin nhắn thông thường (không phải lệnh) - chỉ áp dụng cho chat riêng tư
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, commands.text_message_handler))
 
     # Cấu hình Web Server cho webhook
     webhook_app = web.Application()

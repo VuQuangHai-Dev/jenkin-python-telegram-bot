@@ -20,6 +20,50 @@ GET_URL, GET_USERID, GET_TOKEN, GET_DOCUMENT_LINK = range(4)
 # Định nghĩa key cho document link trong bảng settings
 DOCUMENT_LINK_KEY = "document_link"
 
+async def unknown_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Xử lý các lệnh không được hỗ trợ."""
+    if not update.message:
+        return
+        
+    command = update.message.text.split()[0]  # Lấy lệnh (phần đầu tiên của tin nhắn)
+    user = update.effective_user
+    
+    if not user:
+        logger.info(f"Received unknown command '{command}' from unknown user")
+    else:
+        logger.info(f"Received unknown command '{command}' from {user.first_name} (ID: {user.id})")
+    
+    await update.message.reply_text(
+        f"❓ Command {command} is not supported.\n\n"
+        "Available commands:\n"
+        "/login - Connect your Jenkins account\n"
+        "/logout - Disconnect your Jenkins account\n"
+        "/setup - (In a group) Link a group to a Jenkins job\n"
+        "/build - (In a group) Start a new build\n"
+        "/document - Show documentation link\n"
+        "/setdocument - Update documentation link (admin only)\n"
+        "/help - Show this help message"
+    )
+
+async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Xử lý các tin nhắn thông thường (không phải lệnh) trong chat riêng tư."""
+    if not update.message:
+        return
+        
+    user = update.effective_user
+    
+    # Ghi log
+    if not user:
+        logger.info("Received text message in private chat from unknown user")
+    else:
+        logger.info(f"Received text message in private chat from {user.first_name} (ID: {user.id})")
+    
+    # Phản hồi tin nhắn
+    await update.message.reply_text(
+        "👋 Hello! I am Jenkins Bot.\n\n"
+        "Use /help to see the list of available commands."
+    )
+
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gửi tin nhắn chào mừng tùy theo trạng thái đăng nhập."""
     user = update.effective_user
