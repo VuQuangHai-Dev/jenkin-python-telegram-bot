@@ -87,6 +87,7 @@ async def main() -> None:
     application.add_handler(CommandHandler("start", commands.start_handler))
     application.add_handler(CommandHandler("help", commands.help_handler))
     application.add_handler(CommandHandler("logout", commands.logout_handler))
+    application.add_handler(CommandHandler("document", commands.document_handler))
     # Các lệnh prompt cho conversation
     application.add_handler(CommandHandler("setup", setup.setup_prompt))
     application.add_handler(CommandHandler("build", build.build_prompt))
@@ -106,6 +107,17 @@ async def main() -> None:
         fallbacks=[CommandHandler('cancel', commands.cancel_login)],
     )
     application.add_handler(login_conv_handler)
+
+    # Conversation Handler cho /setdocument
+    setdocument_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('setdocument', commands.setdocument_start)],
+        states={
+            commands.GET_DOCUMENT_LINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, commands.set_document_link)],
+        },
+        fallbacks=[CommandHandler('cancel', commands.cancel_setdocument)],
+        conversation_timeout=300,  # Timeout sau 5 phút
+    )
+    application.add_handler(setdocument_conv_handler)
 
     # Conversation Handler cho /setup
     setup_conv_handler = ConversationHandler(

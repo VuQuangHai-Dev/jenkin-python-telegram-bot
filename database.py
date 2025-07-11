@@ -55,6 +55,17 @@ def init_db():
         )
         """)
         
+        # Tạo bảng settings để lưu các cài đặt toàn cục
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_by_user_id INTEGER,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (updated_by_user_id) REFERENCES users (telegram_user_id)
+        )
+        """)
+        
         conn.commit()
         logger.info("Database initialized successfully")
     except sqlite3.Error as e:
@@ -347,3 +358,81 @@ def update_build_request_with_build_number(build_request_id: str, build_number: 
     finally:
         if conn:
             conn.close()
+
+def save_setting(key: str, value: str, user_id: Optional[int] = None) -> bool:
+    """Lưu hoặc cập nhật một cài đặt trong bảng settings."""
+    conn = None
+    try:
+        conn = sqlite3.connect(config.DB_FILE)
+        cursor = conn.cursor()
+        
+        # Kiểm tra xem cài đặt đã tồn tại chưa
+        cursor.execute("SELECT 1 FROM settings WHERE key = ?", (key,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Cập nhật cài đặt nếu đã tồn tại
+            if user_id:
+                cursor.execute("""
+                    UPDATE settings 
+                    SET value = ?, updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE key = ?
+                """, (value, user_id, key))
+            else:
+                cursor.execute("""
+                    UPDATE settings 
+                    SET value = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE key = ?
+                """, (value, key))
+        else:
+            # Thêm cài đặt mới
+            if user_id:
+                cursor.execute("""
+                    INSERT INTO settings (key, value, updated_by_user_id)
+                    VALUES (?, ?, ?)
+                """, (key, value, user_id))
+            else:
+                cursor.execute("""
+                    INSERT INTO settings (key, value)
+                    VALUES (?, ?)
+                """, (key, value))
+        
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        logger.error(f"Database error while saving setting: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_setting(key: str) -> Optional[Dict[str, Any]]:
+    """Lấy giá trị của một cài đặt từ bảng settings."""
+    conn = None
+    try:
+        conn = sqlite3.connect(config.DB_FILE)
+        conn.row_factory = sqlite3.Row  # Trả về kết quả dưới dạng dictionary-like
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT value, updated_by_user_id, updated_at 
+            FROM settings 
+            WHERE key = ?
+        """, (key,))
+        result = cursor.fetchone()
+        
+        if result:
+            return dict(result)
+        return None
+    except sqlite3.Error as e:
+        logger.error(f"Database error while fetching setting: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def get_setting_value(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Lấy giá trị của một cài đặt, trả về giá trị mặc định nếu không tìm thấy."""
+    setting = get_setting(key)
+    if setting:
+        return setting['value']
+    return default

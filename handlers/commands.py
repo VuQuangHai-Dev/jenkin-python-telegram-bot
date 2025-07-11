@@ -1,16 +1,23 @@
 # handlers/commands.py
 import logging
+import os
+import re
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 import jenkins
 
 import database
 import security
+import config
+from timeout_handler import TimeoutConversationHandler
 
 logger = logging.getLogger(__name__)
 
 # Định nghĩa các trạng thái
-GET_URL, GET_USERID, GET_TOKEN = range(3)
+GET_URL, GET_USERID, GET_TOKEN, GET_DOCUMENT_LINK = range(4)
+
+# Định nghĩa key cho document link trong bảng settings
+DOCUMENT_LINK_KEY = "document_link"
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gửi tin nhắn chào mừng tùy theo trạng thái đăng nhập."""
@@ -23,6 +30,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             "  /setup - (In a group) Link a group to a Jenkins job\n"
             "  /build - (In a group) Start a new build\n"
             "  /logout - Disconnect your Jenkins account\n"
+            "  /document - Show documentation link\n"
+            "  /setdocument - Update documentation link (admin only)\n"
             "  /help - Show this message again"
         )
     else:
@@ -37,6 +46,89 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     user = update.effective_user
     logger.info(f"Received /help command from {user.first_name} (ID: {user.id})")
     await start_handler(update, context)
+
+async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Gửi link document từ cơ sở dữ liệu."""
+    user = update.effective_user
+    logger.info(f"Received /document command from {user.first_name} (ID: {user.id})")
+    
+    # Lấy link document từ cơ sở dữ liệu
+    document_link = database.get_setting_value(DOCUMENT_LINK_KEY)
+    
+    if document_link:
+        await update.message.reply_text(
+            f"📚 Documentation: {document_link}",
+            disable_web_page_preview=False
+        )
+    else:
+        await update.message.reply_text(
+            "❌ Documentation link is not configured. Please ask an admin to set it up using /setdocument."
+        )
+
+async def setdocument_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Bắt đầu quá trình cập nhật link document."""
+    user = update.effective_user
+    logger.info(f"Received /setdocument command from {user.first_name} (ID: {user.id})")
+    
+    # Kiểm tra quyền admin (có thể thay đổi logic này theo nhu cầu)
+    # Ví dụ: chỉ cho phép một số user_id nhất định
+    admin_ids = getattr(config, 'ADMIN_IDS', [])
+    if not admin_ids or user.id not in admin_ids:
+        await update.message.reply_text("❌ You don't have permission to use this command.")
+        return ConversationHandler.END
+    
+    # Hiển thị link hiện tại nếu có
+    current_link = database.get_setting_value(DOCUMENT_LINK_KEY)
+    message_text = ""
+    if current_link:
+        message_text = f"Current documentation link: {current_link}\n\nPlease send the new documentation link:"
+    else:
+        message_text = "Please send the documentation link:"
+    
+    # Gửi tin nhắn và lưu message_id để xử lý timeout
+    message = await update.message.reply_text(message_text)
+    
+    # Lưu metadata cho timeout handler
+    context.user_data['owner_id'] = user.id  # Lưu ID người dùng để kiểm tra quyền
+    TimeoutConversationHandler.set_timeout_metadata(
+        context, message.chat_id, message.message_id, "setdocument"
+    )
+    
+    return GET_DOCUMENT_LINK
+
+async def set_document_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Lưu link document mới vào cơ sở dữ liệu."""
+    new_link = update.message.text.strip()
+    user_id = update.effective_user.id
+    
+    # Kiểm tra tính hợp lệ của link
+    if not new_link.startswith(('http://', 'https://')):
+        await update.message.reply_text("❌ Invalid link. Please provide a valid URL starting with http:// or https://")
+        return GET_DOCUMENT_LINK
+    
+    try:
+        # Lưu link vào cơ sở dữ liệu
+        if database.save_setting(DOCUMENT_LINK_KEY, new_link, user_id):
+            await update.message.reply_text(f"✅ Documentation link updated successfully to:\n{new_link}")
+        else:
+            await update.message.reply_text("❌ Failed to update documentation link. Please try again later.")
+    except Exception as e:
+        logger.error(f"Error updating document link: {e}")
+        await update.message.reply_text(f"❌ An error occurred: {str(e)}")
+    
+    # Xóa timeout metadata khi hoàn thành thành công
+    TimeoutConversationHandler.clear_timeout_metadata(context)
+    
+    return ConversationHandler.END
+
+async def cancel_setdocument(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Hủy quá trình cập nhật link document."""
+    await update.message.reply_text("Process canceled.")
+    
+    # Xóa timeout metadata khi hủy
+    TimeoutConversationHandler.clear_timeout_metadata(context)
+    
+    return ConversationHandler.END
 
 async def logout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Đăng xuất người dùng."""

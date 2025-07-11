@@ -13,3 +13,7 @@ SECRET_KEY = "YOUR_SECRET_KEY_HERE"
 # URL cho server Telegram Bot API cục bộ (nếu bạn có sử dụng).
 # Nếu không, bạn có thể để trống hoặc xóa dòng này.
 LOCAL_BOT_API_URL = "http://localhost:8081" 
+
+# Danh sách ID người dùng Telegram có quyền admin (có thể cập nhật link document)
+# Ví dụ: [123456789, 987654321]
+ADMIN_IDS = [] 
