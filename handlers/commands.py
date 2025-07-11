@@ -20,6 +20,36 @@ GET_URL, GET_USERID, GET_TOKEN, GET_DOCUMENT_LINK = range(4)
 # Định nghĩa key cho document link trong bảng settings
 DOCUMENT_LINK_KEY = "document_link"
 
+def get_help_message(is_logged_in=False, mention_html=None):
+    """Tạo thông báo trợ giúp dựa trên trạng thái đăng nhập."""
+    if is_logged_in and mention_html:
+        return (
+            f"Hi {mention_html}! You are already logged in.\n\n"
+            "You can use these commands:\n"
+            "  /setup - (In a group) Link a group to a Jenkins job\n"
+            "  /build - (In a group) Start a new build\n"
+            "  /logout - Disconnect your Jenkins account\n"
+            "  /document - Show documentation link\n"
+            "  /setdocument - Update documentation link (admin only)\n"
+            "  /help - Show this message again"
+        )
+    elif mention_html:
+        return (
+            f"Hi {mention_html}! Welcome to the Jenkins Bot.\n\n"
+            "Please use /login to connect your Jenkins account."
+        )
+    else:
+        return (
+            "Available commands:\n"
+            "/login - Connect your Jenkins account\n"
+            "/logout - Disconnect your Jenkins account\n"
+            "/setup - (In a group) Link a group to a Jenkins job\n"
+            "/build - (In a group) Start a new build\n"
+            "/document - Show documentation link\n"
+            "/setdocument - Update documentation link (admin only)\n"
+            "/help - Show this help message"
+        )
+
 async def unknown_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Xử lý các lệnh không được hỗ trợ."""
     if not update.message:
@@ -33,17 +63,8 @@ async def unknown_command_handler(update: Update, context: ContextTypes.DEFAULT_
     else:
         logger.info(f"Received unknown command '{command}' from {user.first_name} (ID: {user.id})")
     
-    await update.message.reply_text(
-        f"❓ Command {command} is not supported.\n\n"
-        "Available commands:\n"
-        "/login - Connect your Jenkins account\n"
-        "/logout - Disconnect your Jenkins account\n"
-        "/setup - (In a group) Link a group to a Jenkins job\n"
-        "/build - (In a group) Start a new build\n"
-        "/document - Show documentation link\n"
-        "/setdocument - Update documentation link (admin only)\n"
-        "/help - Show this help message"
-    )
+    help_message = get_help_message()
+    await update.message.reply_text(f"❓ Command {command} is not supported.\n\n{help_message}")
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Xử lý các tin nhắn thông thường (không phải lệnh) trong chat riêng tư."""
@@ -66,31 +87,35 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gửi tin nhắn chào mừng tùy theo trạng thái đăng nhập."""
+    if not update.message:
+        return
+        
     user = update.effective_user
+    if not user:
+        return
+        
     logger.info(f"Received /start command from {user.first_name} (ID: {user.id})")
-    if database.is_user_logged_in(user.id):
-        welcome_message = (
-            f"Hi {user.mention_html()}! You are already logged in.\n\n"
-            "You can use these commands:\n"
-            "  /setup - (In a group) Link a group to a Jenkins job\n"
-            "  /build - (In a group) Start a new build\n"
-            "  /logout - Disconnect your Jenkins account\n"
-            "  /document - Show documentation link\n"
-            "  /setdocument - Update documentation link (admin only)\n"
-            "  /help - Show this message again"
-        )
-    else:
-        welcome_message = (
-            f"Hi {user.mention_html()}! Welcome to the Jenkins Bot.\n\n"
-            "Please use /login to connect your Jenkins account."
-        )
+    
+    is_logged_in = database.is_user_logged_in(user.id)
+    welcome_message = get_help_message(is_logged_in, user.mention_html())
+    
     await update.message.reply_html(welcome_message)
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gửi tin nhắn trợ giúp."""
+    if not update.message:
+        return
+        
     user = update.effective_user
+    if not user:
+        return
+        
     logger.info(f"Received /help command from {user.first_name} (ID: {user.id})")
-    await start_handler(update, context)
+    
+    is_logged_in = database.is_user_logged_in(user.id)
+    help_message = get_help_message(is_logged_in, user.mention_html())
+    
+    await update.message.reply_html(help_message)
 
 async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Gửi link document từ cơ sở dữ liệu."""
