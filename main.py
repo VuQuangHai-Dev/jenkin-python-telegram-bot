@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import time
+import re
 from aiohttp import web
 
 from telegram import Update
@@ -13,11 +14,15 @@ from webhook.server import webhook_handler
 from handlers import commands, setup, build
 from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, filters, JobQueue
 from timeout_handler import timeout_messages, register_timeout_job, remove_timeout_job
+from log_filters import add_html_filter_to_logger
 
 # Cấu hình logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+# Thêm bộ lọc HTML cho root logger
+add_html_filter_to_logger()
+# Đặt mức cảnh báo cho các thư viện bên ngoài
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("JenkinsBot")
 

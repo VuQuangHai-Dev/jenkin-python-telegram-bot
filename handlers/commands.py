@@ -11,6 +11,7 @@ import security
 import config
 from timeout_handler import TimeoutConversationHandler
 
+# Cấu hình logger riêng cho module này
 logger = logging.getLogger(__name__)
 
 # Định nghĩa các trạng thái
