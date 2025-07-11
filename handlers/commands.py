@@ -188,8 +188,21 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         encrypted_token = security.encrypt_data(jenkins_token)
         database.save_user(update.effective_user.id, jenkins_url, jenkins_userid, encrypted_token)
         await update.message.reply_text(f"✅ Success! Connected as '{user_info.get('fullName', 'Unknown User')}'.")
+    except jenkins.JenkinsException as e:
+        logger.error(f"Jenkins authentication error: {e}")
+        # Kiểm tra các loại lỗi phổ biến và hiển thị thông báo thân thiện
+        error_message = str(e).lower()
+        if "401" in error_message or "unauthorized" in error_message:
+            await update.message.reply_text("❌ Authentication failed: Invalid username or token. Please check your credentials and try again.")
+        elif "404" in error_message or "not found" in error_message:
+            await update.message.reply_text("❌ Authentication failed: Jenkins server not found. Please check the URL and try again.")
+        elif "timeout" in error_message:
+            await update.message.reply_text("❌ Authentication failed: Connection timed out. Please check if the Jenkins server is accessible.")
+        else:
+            await update.message.reply_text("❌ Authentication failed. Please check your credentials and try again.")
     except Exception as e:
-        await update.message.reply_text(f"❌ Authentication failed: {e}. Please use /login to try again.")
+        logger.error(f"General error during authentication: {e}")
+        await update.message.reply_text("❌ An error occurred while connecting to Jenkins. Please try again later.")
     
     context.user_data.clear()
     return ConversationHandler.END

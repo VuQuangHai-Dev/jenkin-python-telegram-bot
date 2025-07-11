@@ -108,9 +108,21 @@ async def setup_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         
         return SELECT_FOLDER
+    except jenkins.JenkinsException as e:
+        logger.error(f"Jenkins API error in setup_start: {e}")
+        error_message = str(e).lower()
+        if "401" in error_message or "unauthorized" in error_message:
+            await query.edit_message_text("❌ Authentication failed. Your Jenkins credentials may have expired. Please /logout and /login again.")
+        elif "404" in error_message or "not found" in error_message:
+            await query.edit_message_text("❌ Jenkins server or API endpoint not found. Please check your Jenkins URL.")
+        elif "timeout" in error_message:
+            await query.edit_message_text("❌ Connection to Jenkins timed out. Please check if the server is accessible.")
+        else:
+            await query.edit_message_text("❌ An error occurred while connecting to Jenkins. Please try again later.")
+        return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error getting folders: {e}")
-        await query.edit_message_text("❌ An error occurred while fetching projects.")
+        await query.edit_message_text("❌ An error occurred while fetching projects. Please try again later.")
         return ConversationHandler.END
 
 async def select_folder_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -150,9 +162,21 @@ async def select_folder_callback(update: Update, context: ContextTypes.DEFAULT_T
         keyboard = build_keyboard(jobs, 'setup_job', "job")
         await query.edit_message_text(f"🗂️ Folder '{folder_name}' selected.\n🔨 Please select a build job:", reply_markup=keyboard)
         return SELECT_JOB_IN_FOLDER
+    except jenkins.JenkinsException as e:
+        logger.error(f"Jenkins API error in select_folder_callback: {e}")
+        error_message = str(e).lower()
+        if "401" in error_message or "unauthorized" in error_message:
+            await query.edit_message_text("❌ Authentication failed. Your Jenkins credentials may have expired. Please /logout and /login again.")
+        elif "404" in error_message or "not found" in error_message:
+            await query.edit_message_text(f"❌ Folder '{folder_name}' not found or you don't have permission to access it.")
+        elif "timeout" in error_message:
+            await query.edit_message_text("❌ Connection to Jenkins timed out. Please try again later.")
+        else:
+            await query.edit_message_text("❌ An error occurred while accessing the folder. Please try again later.")
+        return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error getting jobs in folder '{folder_name}': {e}")
-        await query.edit_message_text("❌ Error accessing folder.")
+        await query.edit_message_text("❌ An error occurred while accessing the folder. Please try again later.")
         return ConversationHandler.END
 
 async def select_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

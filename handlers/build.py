@@ -146,9 +146,21 @@ async def build_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         
         return SELECT_BRANCH
 
+    except jenkins.JenkinsException as e:
+        logger.error(f"Jenkins API error in build_start: {e}")
+        error_message = str(e).lower()
+        if "401" in error_message or "unauthorized" in error_message:
+            await query.edit_message_text("❌ Authentication failed. Your Jenkins credentials may have expired. Please /logout and /login again.")
+        elif "404" in error_message or "not found" in error_message:
+            await query.edit_message_text(f"❌ Job '{job_name}' not found or you don't have permission to access it.")
+        elif "timeout" in error_message:
+            await query.edit_message_text("❌ Connection to Jenkins timed out. Please try again later.")
+        else:
+            await query.edit_message_text("❌ An error occurred while connecting to Jenkins. Please try again later.")
+        return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error starting build: {e}")
-        await query.edit_message_text("❌ An error occurred while fetching job info from Jenkins.")
+        await query.edit_message_text("❌ An error occurred while fetching job info from Jenkins. Please try again later.")
         return ConversationHandler.END
 
 async def select_branch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -242,9 +254,20 @@ async def select_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             f"I will notify you when it's complete\\."
         )
         await query.edit_message_text(message, parse_mode='MarkdownV2')
+    except jenkins.JenkinsException as e:
+        logger.error(f"Jenkins API error in select_target: {e}")
+        error_message = str(e).lower()
+        if "401" in error_message or "unauthorized" in error_message:
+            await query.edit_message_text("❌ Authentication failed. Your Jenkins credentials may have expired. Please /logout and /login again.")
+        elif "404" in error_message or "not found" in error_message:
+            await query.edit_message_text(f"❌ Job '{job_name}' not found or you don't have permission to access it.")
+        elif "timeout" in error_message:
+            await query.edit_message_text("❌ Connection to Jenkins timed out. Please try again later.")
+        else:
+            await query.edit_message_text("❌ Failed to start the build on Jenkins. Please try again later.")
     except Exception as e:
         logger.error(f"Error starting build: {e}")
-        await query.edit_message_text("❌ Failed to start the build on Jenkins.")
+        await query.edit_message_text("❌ Failed to start the build on Jenkins. Please try again later.")
     
     # Xóa timeout metadata khi hoàn thành
     TimeoutConversationHandler.clear_timeout_metadata(context)    
