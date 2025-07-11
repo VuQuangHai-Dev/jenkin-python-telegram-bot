@@ -4,6 +4,7 @@ from aiohttp import web
 import os
 import aiohttp
 from urllib.parse import urljoin
+from log_filters import add_html_filter_to_logger
 
 import database
 import security
@@ -11,6 +12,7 @@ from telegram.constants import ParseMode
 from telegram import InputFile, InlineKeyboardButton, InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
+add_html_filter_to_logger(__name__)
 
 def escape_markdown_v2(text: str) -> str:
     """Escapes special characters for Telegram's MarkdownV2 parse mode."""

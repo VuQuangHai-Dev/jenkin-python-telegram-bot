@@ -3,10 +3,12 @@ import config
 import logging
 from typing import Optional, Tuple, List, Dict, Any
 import security # Added missing import
+from log_filters import add_html_filter_to_logger
 
 # Cấu hình logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
+add_html_filter_to_logger(__name__)
 
 def init_db():
     """Khởi tạo database nếu chưa tồn tại."""

@@ -2,8 +2,10 @@ import logging
 import time
 from telegram import Bot
 from telegram.ext import ContextTypes
+from log_filters import add_html_filter_to_logger
 
 logger = logging.getLogger(__name__)
+add_html_filter_to_logger(__name__)
 
 # Dictionary để lưu các tin nhắn cần cập nhật khi timeout
 # Key: user_id, Value: (chat_id, message_id, timeout_time, conversation_type)

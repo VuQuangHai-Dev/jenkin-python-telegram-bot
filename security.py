@@ -1,12 +1,15 @@
 # security.py
 import base64
+import os
 from cryptography.fernet import Fernet
 import config
 import logging
 from typing import Optional
+from log_filters import add_html_filter_to_logger
 
 # Cấu hình logging
 logger = logging.getLogger(__name__)
+add_html_filter_to_logger(__name__)
 
 def get_key():
     """Lấy khóa mã hóa từ config."""
